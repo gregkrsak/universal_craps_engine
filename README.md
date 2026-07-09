@@ -215,7 +215,7 @@ The model contains the table point, phase, hand and roll counters, wagers, rules
 - Python **3.10 or newer**
 - [PyYAML](https://pyyaml.org/)
 
-No database, package installation, web service, or external simulation framework is required.
+No database, web service, or installation of Universal Craps Engine *as a Python package* is required. PyYAML is the only third-party runtime dependency.
 
 ---
 
