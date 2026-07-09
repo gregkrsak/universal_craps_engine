@@ -192,6 +192,7 @@ The model contains the table point, phase, hand and roll counters, wagers, rules
 ├── uce_strategy_full_showcase.yaml
 ├── uce_strategy_100_across_with_hardways.yaml
 ├── requirements.txt
+├── LICENSE
 ├── .gitignore
 ├── .github/workflows/tests.yml
 └── README.md
@@ -205,6 +206,7 @@ The model contains the table point, phase, hand and roll counters, wagers, rules
 | `requirements.txt` | Runtime dependency declaration |
 | `.github/workflows/tests.yml` | Automated tests on Python 3.10–3.12 |
 | `README.md` | Project documentation |
+| `LICENSE` | MIT License |
 
 ---
 
