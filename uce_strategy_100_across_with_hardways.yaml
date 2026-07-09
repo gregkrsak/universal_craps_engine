@@ -1,0 +1,477 @@
+# =============================================================================
+#  $100 ACROSS WITH $5 HARDWAYS
+#  Strategy configuration for universal_craps_engine.py
+#  Created by Greg M. Krsak and GPT-5.5 High in ChatGPT Plus
+# =============================================================================
+#
+#  IMPORTANT TERMINOLOGY
+#  ---------------------
+#  In this strategy, “$100 across” means the following six-number layout,
+#  with the 6 and 8 raised to payout-clean $120 units:
+#
+#      $100 Place 4       $120 Place 6       $100 Place 9
+#      $100 Place 5       $120 Place 8       $100 Place 10
+#
+#  The total Place-bet exposure is therefore $640, not $100.  The 6 and 8 are
+#  wagered in $6 units so that their 7:6 Place payouts remain exact.
+#
+#  The player also keeps $5 on each Hardway (4, 6, 8, and 10) and makes a
+#  $25 Pass Line wager on every come-out roll.
+#
+#  MANAGEMENT PLAN
+#  ---------------
+#  * Establish the full $640 Place layout after a point is established.
+#  * Keep the Place wagers up after wins; the engine correctly credits only
+#    profit while leaving each wagered stake on the layout.
+#  * Regress all Place wagers by one-half after every fifth completed roll
+#    while the puck remains ON.
+#  * Regress all Place wagers by one-half whenever the shooter makes the point.
+#  * Never regress below $15 on 4/5/9/10 or $18 on 6/8.
+#  * Replace a Hardway after it loses to an easy-way roll.
+#  * After a seven-out, let the losing Place bets and Hardways come down
+#    naturally.  The next hand rebuilds the Hardways, and the next established
+#    point rebuilds the full $100/$120 Place layout.
+#
+#  The interval regression is conditioned on phase: point_on.  This prevents
+#  the same roll from causing both an interval regression and a point-made
+#  regression, which prevents two reductions from firing on the same roll.
+# =============================================================================
+
+version: 1
+
+meta:
+  name: "$100 Across With $5 Hardways"
+  description: >-
+    A high-exposure right-side strategy that wagers $25 on the Pass Line,
+    places $100 each on 4, 5, 9, and 10, places $120 each on 6 and 8, and keeps
+    $5 on every Hardway. Place wagers regress by half every fifth completed
+    point-on roll and whenever the shooter makes the point, never falling below
+    $15 on 4/5/9/10 or $18 on 6/8. Hardways are replaced after easy-way losses
+    and rebuilt for each new shooter.
+
+# -----------------------------------------------------------------------------
+# SESSION BOUNDARIES
+# -----------------------------------------------------------------------------
+# A complete fresh layout requires:
+#
+#     $25 Pass Line + $640 Place bets + $20 Hardways = $685
+#
+# The stop-loss is set at $685 so the strategy never begins another roll from
+# a bankroll state that cannot support its intended full layout.  The engine
+# checks equity before each roll; this also prevents a sequence of YAML actions
+# from partially constructing the six-number Place layout.
+# -----------------------------------------------------------------------------
+
+session:
+  bankroll: 1000
+  target: 1200
+  stop_loss: 685
+  max_rolls: 500
+  max_hands: 100
+  seed: null
+
+# -----------------------------------------------------------------------------
+# TABLE RULES
+# -----------------------------------------------------------------------------
+# These rules model a conventional Strip-style game:
+#
+# * Don't Pass bars 12.
+# * Field pays double on 2 and triple on 12.
+# * Buy vig is charged only on a win, based on the wager.
+# * Lay vig is charged only on a win, based on the amount won.
+# * Place bets and Hardways are OFF during come-out rolls by default.
+# * The odds schedule is standard 3-4-5x, though this particular strategy does
+#   not take odds.  It remains declared because the engine's rules schema is
+#   intentionally complete and explicit.
+# -----------------------------------------------------------------------------
+
+rules:
+  dont_bar: 12
+  field_2_profit: 2
+  field_12_profit: 3
+  chip_unit: 1
+  payout_rounding: floor
+  enforce_increments: true
+
+  buy_vig:
+    rate: 0.05
+    timing: on_win
+    basis: wager
+
+  lay_vig:
+    rate: 0.05
+    timing: on_win
+    basis: win
+
+  odds:
+    take:
+      4: 3
+      5: 4
+      6: 5
+      8: 5
+      9: 4
+      10: 3
+    lay:
+      4: 6
+      5: 6
+      6: 6
+      8: 6
+      9: 6
+      10: 6
+
+  working_on_comeout:
+    place: false
+    buy: false
+    lay: false
+    hardways: false
+    big_6_8: false
+    come_odds: false
+    dont_come_odds: true
+
+  # Strategy-specific minimums.  Unlisted wager families retain the engine's
+  # safe $1 default minimum.
+  minimums:
+    pass_line: 25
+    place:
+      4: 15
+      5: 15
+      6: 18
+      8: 18
+      9: 15
+      10: 15
+    hardway: 5
+
+  # Place 6 and 8 must remain in $6 units; the other Place numbers use $5
+  # units.  This makes every configured payout and regression casino-clean.
+  increments:
+    pass_line: 5
+    place:
+      4: 5
+      5: 5
+      6: 6
+      8: 6
+      9: 5
+      10: 5
+    hardway: 5
+
+# -----------------------------------------------------------------------------
+# DECLARATIVE STRATEGY CONTROLLER
+# -----------------------------------------------------------------------------
+
+strategy:
+  actions:
+    - id: announce_strategy
+      trigger: session_start
+      do:
+        type: message
+        text: >-
+          Starting $100 across with $5 Hardways: $25 Pass Line, $640 across,
+          half-regression management, and standard come-out working rules.
+
+    # Build the four Hardways at the start of each shooter's hand.  No explicit
+    # `working` override is supplied: the table default correctly keeps them
+    # off during come-out rolls and automatically turns them on when a point
+    # exists.
+    - id: establish_hardways_for_new_shooter
+      trigger: hand_start
+      when:
+        cash_gte: 20
+      do:
+        type: ensure_bet
+        kind: hardway
+        amount: 5
+        numbers: [4, 6, 8, 10]
+
+    # A Pass Line wager is restored before every come-out roll after a natural,
+    # craps result, made point, or new shooter.
+    - id: maintain_pass_line
+      trigger: come_out
+      when:
+        cash_gte: 25
+        bet_not_exists:
+          kind: pass_line
+      do:
+        type: ensure_bet
+        kind: pass_line
+        amount: 25
+
+    # Lay out the $400 outside portion first.  The $640 cash guard, combined
+    # with the $685 session stop-loss, guarantees that the following inside
+    # action can finish the complete layout rather than leaving a partial
+    # strategy on the table.
+    - id: establish_outside_place_bets
+      trigger: point_established
+      when:
+        cash_gte: 640
+        bet_not_exists:
+          kind: place
+          numbers: [4, 5, 9, 10]
+      do:
+        type: ensure_bet
+        kind: place
+        amount: 100
+        numbers: [4, 5, 9, 10]
+
+    # Complete the layout with $120 each on 6 and 8.  After the outside action
+    # reserves $400, exactly $240 is required to finish the intended $640
+    # across position.
+    - id: establish_inside_place_bets
+      trigger: point_established
+      when:
+        cash_gte: 240
+        bet_not_exists:
+          kind: place
+          numbers: [6, 8]
+      do:
+        type: ensure_bet
+        kind: place
+        amount: 120
+        numbers: [6, 8]
+
+    # Regress after every fifth completed roll only while a point remains on.
+    # If the fifth roll makes the point, phase becomes come_out, this action is
+    # skipped, and the dedicated point_made action below performs one—and only
+    # one—regression.
+    - id: regress_every_fifth_point_on_roll
+      trigger: after_roll
+      when:
+        phase: point_on
+        roll_every: 5
+        bet_exists:
+          kind: place
+      do:
+        type: regress_bets
+        kind: place
+        factor: 0.5
+        minimums:
+          4: 15
+          5: 15
+          6: 18
+          8: 18
+          9: 15
+          10: 15
+
+    # Keep the strategy's second regression trigger: make the
+    # point, then reduce all surviving Place exposure by half.
+    - id: regress_after_point_made
+      trigger: point_made
+      when:
+        bet_exists:
+          kind: place
+      do:
+        type: regress_bets
+        kind: place
+        factor: 0.5
+        minimums:
+          4: 15
+          5: 15
+          6: 18
+          8: 18
+          9: 15
+          10: 15
+
+    # A Hardway loses either to seven or to the corresponding easy combination.
+    # This action listens only for totals 4/6/8/10, so an easy-way roll
+    # loss is replaced immediately while a seven-out waits for the normal
+    # hand_start rebuild.  That avoids purchasing fresh Hardways in the tiny
+    # state transition between seven-out and the next shooter.
+    - id: replace_easy_way_hardway_loss
+      trigger: bet_loss
+      when:
+        losing_kind: hardway
+        roll_total_in: [4, 6, 8, 10]
+        cash_gte: 5
+      do:
+        type: ensure_bet
+        kind: hardway
+        amount: 5
+        numbers: [4, 6, 8, 10]
+
+    - id: announce_seven_out
+      trigger: seven_out
+      do:
+        type: message
+        text: >-
+          Seven out. The losing layout is cleared; the next shooter will begin
+          with fresh Hardways and rebuild the full Place layout after a point.
+
+# -----------------------------------------------------------------------------
+# DETERMINISTIC MECHANICAL CHECKS
+# -----------------------------------------------------------------------------
+# These scenarios test the wager sizes and management mechanics upon which this
+# strategy depends.  They are executable with:
+#
+#     python universal_craps_engine.py \
+#         strategy_100_across_with_hardways.yaml --run-scenarios
+# -----------------------------------------------------------------------------
+
+scenarios:
+  - name: "$100 Place 4 and $120 Place 6 pay correctly and remain active"
+    bankroll: 1000
+    setup:
+      - type: set_point
+        point: 5
+      - type: place_bet
+        kind: place
+        amount: 100
+        number: 4
+      - type: place_bet
+        kind: place
+        amount: 120
+        number: 6
+    rolls:
+      - [2, 2]
+      - [3, 3]
+    expected:
+      cash: 1100
+      equity: 1320
+      point: 5
+      phase: point_on
+      active_count: 2
+      active_by_kind:
+        place: 2
+      roll_number: 2
+
+  - name: "$5 Hard 6 pays nine-to-one and stays on the layout"
+    bankroll: 100
+    setup:
+      - type: set_point
+        point: 5
+      - type: place_bet
+        kind: hardway
+        amount: 5
+        number: 6
+    rolls:
+      - [3, 3]
+    expected:
+      cash: 140
+      equity: 145
+      point: 5
+      phase: point_on
+      active_count: 1
+      active_by_kind:
+        hardway: 1
+      roll_number: 1
+
+  - name: "Three half-regressions reach the intended $96-across floor"
+    bankroll: 1000
+    setup:
+      - type: place_bet
+        kind: place
+        amount: 100
+        number: 4
+      - type: place_bet
+        kind: place
+        amount: 100
+        number: 5
+      - type: place_bet
+        kind: place
+        amount: 120
+        number: 6
+      - type: place_bet
+        kind: place
+        amount: 120
+        number: 8
+      - type: place_bet
+        kind: place
+        amount: 100
+        number: 9
+      - type: place_bet
+        kind: place
+        amount: 100
+        number: 10
+      - type: regress_bets
+        kind: place
+        factor: 0.5
+        minimums:
+          4: 15
+          5: 15
+          6: 18
+          8: 18
+          9: 15
+          10: 15
+      - type: regress_bets
+        kind: place
+        factor: 0.5
+        minimums:
+          4: 15
+          5: 15
+          6: 18
+          8: 18
+          9: 15
+          10: 15
+      - type: regress_bets
+        kind: place
+        factor: 0.5
+        minimums:
+          4: 15
+          5: 15
+          6: 18
+          8: 18
+          9: 15
+          10: 15
+    rolls: []
+    expected:
+      cash: 904
+      equity: 1000
+      point: null
+      phase: come_out
+      active_count: 6
+      active_by_kind:
+        place: 6
+      roll_number: 0
+
+  - name: "Seven-out removes the complete Place and Hardway layout"
+    bankroll: 1000
+    setup:
+      - type: set_point
+        point: 5
+      - type: place_bet
+        kind: place
+        amount: 100
+        number: 4
+      - type: place_bet
+        kind: place
+        amount: 100
+        number: 5
+      - type: place_bet
+        kind: place
+        amount: 120
+        number: 6
+      - type: place_bet
+        kind: place
+        amount: 120
+        number: 8
+      - type: place_bet
+        kind: place
+        amount: 100
+        number: 9
+      - type: place_bet
+        kind: place
+        amount: 100
+        number: 10
+      - type: place_bet
+        kind: hardway
+        amount: 5
+        number: 4
+      - type: place_bet
+        kind: hardway
+        amount: 5
+        number: 6
+      - type: place_bet
+        kind: hardway
+        amount: 5
+        number: 8
+      - type: place_bet
+        kind: hardway
+        amount: 5
+        number: 10
+    rolls:
+      - [3, 4]
+    expected:
+      cash: 340
+      equity: 340
+      point: null
+      phase: come_out
+      active_count: 0
+      roll_number: 1

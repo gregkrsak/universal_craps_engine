@@ -1,0 +1,594 @@
+version: 1
+#  Created by Greg M. Krsak and GPT-5.5 High in ChatGPT Plus
+
+meta:
+  name: "Universal Craps Engine Full-Surface Showcase"
+  description: >-
+    A broad reference configuration that exercises every documented YAML
+    trigger, condition family, strategy action, table-rule option, wager family,
+    and deterministic scenario facility in the companion Python engine.
+
+session:
+  bankroll: 100000
+  target: 101000
+  stop_loss: 95000
+  max_rolls: 120
+  max_hands: 20
+  seed: 20260709
+
+rules:
+  dont_bar: 12
+  field_2_profit: 2
+  field_12_profit: 3
+  chip_unit: 0.01
+  payout_rounding: exact
+  enforce_increments: true
+
+  buy_vig:
+    rate: 0.05
+    timing: on_win
+    basis: wager
+
+  lay_vig:
+    rate: 0.05
+    timing: on_win
+    basis: win
+
+  odds:
+    take:
+      4: 3
+      5: 4
+      6: 5
+      8: 5
+      9: 4
+      10: 3
+    lay:
+      4: 6
+      5: 6
+      6: 6
+      8: 6
+      9: 6
+      10: 6
+
+  working_on_comeout:
+    place: false
+    buy: false
+    lay: false
+    hardways: false
+    big_6_8: false
+    come_odds: false
+    dont_come_odds: true
+
+  minimums:
+    pass_line: 5
+    dont_pass: 5
+    come: 5
+    dont_come: 5
+    take_odds: 1
+    lay_odds: 1
+    place:
+      4: 5
+      5: 5
+      6: 6
+      8: 6
+      9: 5
+      10: 5
+    buy: 5
+    lay: 5
+    field: 1
+    big_6: 5
+    big_8: 5
+    hardway: 1
+    any_seven: 1
+    any_craps: 1
+    aces: 1
+    ace_deuce: 1
+    yo: 1
+    boxcars: 1
+    horn: 4
+    c_and_e: 2
+    world: 5
+    hop: 1
+
+  increments:
+    pass_line: 1
+    dont_pass: 1
+    come: 1
+    dont_come: 1
+    take_odds: 1
+    lay_odds: 1
+    place:
+      4: 5
+      5: 5
+      6: 6
+      8: 6
+      9: 5
+      10: 5
+    buy: 5
+    lay: 5
+    field: 1
+    big_6: 1
+    big_8: 1
+    hardway: 1
+    any_seven: 1
+    any_craps: 1
+    aces: 1
+    ace_deuce: 1
+    yo: 1
+    boxcars: 1
+    horn: 4
+    c_and_e: 2
+    world: 5
+    hop: 1
+
+strategy:
+  actions:
+    - id: announce_session
+      trigger: session_start
+      do:
+        type: message
+        text: "Beginning the full-surface YAML showcase strategy."
+
+    - id: opening_world
+      trigger: session_start
+      do:
+        type: place_bet
+        kind: world
+        amount: 5
+
+    - id: announce_hand
+      trigger: hand_start
+      when:
+        hand_number_gte: 1
+        hand_number_lte: 20
+      do:
+        type: message
+        text: "A new shooter has the dice."
+
+    - id: hardways_on_new_hand
+      trigger: hand_start
+      do:
+        type: ensure_bet
+        kind: hardway
+        amount: 1
+        numbers: [4, 6, 8, 10]
+        working: false
+
+    - id: pass_on_every_comeout
+      trigger: come_out
+      when:
+        phase: come_out
+        bet_not_exists:
+          kind: pass_line
+      do:
+        type: ensure_bet
+        kind: pass_line
+        amount: 10
+
+    - id: field_on_every_comeout
+      trigger: come_out
+      do:
+        type: ensure_bet
+        kind: field
+        amount: 1
+
+    - id: place_outside_after_point
+      trigger: point_established
+      when:
+        point_in: [4, 5, 6, 8, 9, 10]
+        cash_gte: 100
+      do:
+        type: ensure_bet
+        kind: place
+        amount: 10
+        numbers: [4, 5, 9, 10]
+
+    - id: place_inside_after_point
+      trigger: point_established
+      when:
+        equity_gte: 100
+      do:
+        type: ensure_bet
+        kind: place
+        amount: 12
+        numbers: [6, 8]
+
+    - id: buy_four_after_point
+      trigger: point_established
+      do:
+        type: ensure_bet
+        kind: buy
+        amount: 20
+        number: 4
+
+    - id: lay_ten_after_point
+      trigger: point_established
+      do:
+        type: ensure_bet
+        kind: lay
+        amount: 20
+        number: 10
+
+    - id: maximize_pass_odds
+      trigger: point_established
+      when:
+        bet_exists:
+          kind: pass_line
+      do:
+        type: take_odds
+        parent_kind: pass_line
+        amount: max
+
+    - id: keep_any_craps_rolling
+      trigger: after_roll
+      when:
+        roll_number_gte: 1
+        roll_number_lte: 99
+        cash_gte: 1
+      do:
+        type: ensure_bet
+        kind: any_craps
+        amount: 1
+
+    - id: press_place_winners_half_profit
+      trigger: bet_win
+      when:
+        winning_kind: place
+      do:
+        type: press_bet
+        kind: place
+        profit_fraction: 0.5
+
+    - id: replace_lost_hardways
+      trigger: bet_loss
+      when:
+        losing_kind: hardway
+        equity_gte: 4
+      do:
+        type: ensure_bet
+        kind: hardway
+        amount: 1
+        numbers: [4, 6, 8, 10]
+        working: false
+
+    - id: regress_place_bets_after_made_point
+      trigger: point_made
+      do:
+        type: regress_bets
+        kind: place
+        factor: 0.5
+        minimums:
+          4: 5
+          5: 5
+          6: 6
+          8: 6
+          9: 5
+          10: 5
+
+    - id: remove_buy_bet_every_fifteen_rolls
+      trigger: after_roll
+      when:
+        roll_every: 15
+        bet_exists:
+          kind: buy
+      do:
+        type: remove_bets
+        kind: buy
+
+    - id: hardways_off_every_tenth_roll
+      trigger: after_roll
+      when:
+        roll_every: 10
+      do:
+        type: set_working
+        kind: hardway
+        working: false
+
+    - id: hardways_working_every_eleventh_roll
+      trigger: before_roll
+      when:
+        roll_every: 11
+      do:
+        type: set_working
+        kind: hardway
+        working: true
+
+    - id: announce_selected_totals
+      trigger: after_roll
+      when:
+        roll_total_in: [2, 7, 11, 12]
+        cash_lte: 1000000
+        equity_lte: 1000000
+      do:
+        type: message
+        text: "A strategically notable total just rolled."
+
+    - id: announce_seven_out
+      trigger: seven_out
+      do:
+        type: message
+        text: "Seven out; completing the shooter hand transition."
+
+    - id: bounded_showcase_stop
+      trigger: after_roll
+      when:
+        roll_number_gte: 100
+      do:
+        type: stop_session
+        reason: "The YAML showcase completed 100 audited rolls."
+
+scenarios:
+  - name: "Pass Line with true odds on four"
+    bankroll: 100
+    setup:
+      - type: place_bet
+        kind: pass_line
+        amount: 10
+      - type: set_point
+        point: 4
+      - type: take_odds
+        parent_index: 0
+        amount: 20
+    rolls:
+      - [2, 2]
+    expected:
+      cash: 150
+      equity: 150
+      point: null
+      phase: come_out
+      active_count: 0
+      roll_number: 1
+
+  - name: "Don't Pass bar twelve remains a live push"
+    bankroll: 100
+    setup:
+      - type: place_bet
+        kind: dont_pass
+        amount: 10
+    rolls:
+      - [6, 6]
+    expected:
+      cash: 90
+      equity: 100
+      point: null
+      phase: come_out
+      active_count: 1
+      active_by_kind:
+        dont_pass: 1
+      roll_number: 1
+
+  - name: "Don't Pass with lay odds wins on seven"
+    bankroll: 100
+    setup:
+      - type: place_bet
+        kind: dont_pass
+        amount: 10
+      - type: set_point
+        point: 4
+      - type: take_odds
+        parent_index: 0
+        amount: 20
+    rolls:
+      - [3, 4]
+    expected:
+      cash: 120
+      equity: 120
+      point: null
+      active_count: 0
+      roll_number: 1
+
+  - name: "Come contract and attached odds win together"
+    bankroll: 100
+    setup:
+      - type: set_point
+        point: 8
+      - type: place_bet
+        kind: come
+        amount: 10
+      - type: set_bet_number
+        bet_index: 0
+        number: 5
+      - type: take_odds
+        parent_index: 0
+        amount: 10
+    rolls:
+      - [1, 4]
+    expected:
+      cash: 125
+      equity: 125
+      point: 8
+      active_count: 0
+      roll_number: 1
+
+  - name: "Don't Come contract and lay odds win together"
+    bankroll: 100
+    setup:
+      - type: set_point
+        point: 8
+      - type: place_bet
+        kind: dont_come
+        amount: 10
+      - type: set_bet_number
+        bet_index: 0
+        number: 6
+      - type: take_odds
+        parent_index: 0
+        amount: 12
+    rolls:
+      - [3, 4]
+    expected:
+      cash: 120
+      equity: 120
+      point: null
+      active_count: 0
+      roll_number: 1
+
+  - name: "Persistent bets win, lose, and survive correctly"
+    bankroll: 200
+    setup:
+      - type: set_point
+        point: 5
+      - type: place_bet
+        kind: place
+        amount: 12
+        number: 6
+      - type: place_bet
+        kind: buy
+        amount: 20
+        number: 4
+      - type: place_bet
+        kind: lay
+        amount: 20
+        number: 10
+      - type: place_bet
+        kind: hardway
+        amount: 1
+        number: 8
+      - type: place_bet
+        kind: big_6
+        amount: 5
+      - type: place_bet
+        kind: big_8
+        amount: 5
+    rolls:
+      - [3, 3]
+      - [4, 4]
+      - [3, 4]
+    expected:
+      cash: 179.5
+      equity: 199.5
+      point: null
+      active_count: 1
+      active_by_kind:
+        lay: 1
+      roll_number: 3
+
+  - name: "All simple one-roll propositions settle immediately"
+    bankroll: 100
+    setup:
+      - type: set_point
+        point: 5
+      - type: place_bet
+        kind: any_seven
+        amount: 1
+      - type: place_bet
+        kind: any_craps
+        amount: 1
+      - type: place_bet
+        kind: aces
+        amount: 1
+      - type: place_bet
+        kind: ace_deuce
+        amount: 1
+      - type: place_bet
+        kind: yo
+        amount: 1
+      - type: place_bet
+        kind: boxcars
+        amount: 1
+      - type: place_bet
+        kind: field
+        amount: 1
+    rolls:
+      - [1, 1]
+    expected:
+      cash: 135
+      equity: 135
+      point: 5
+      active_count: 0
+      roll_number: 1
+
+  - name: "Horn C-and-E World and Hop use component stakes"
+    bankroll: 100
+    setup:
+      - type: set_point
+        point: 5
+      - type: place_bet
+        kind: horn
+        amount: 4
+      - type: place_bet
+        kind: c_and_e
+        amount: 2
+      - type: place_bet
+        kind: world
+        amount: 5
+      - type: place_bet
+        kind: hop
+        amount: 1
+        hop_pair: [1, 1]
+    rolls:
+      - [1, 1]
+    expected:
+      cash: 189
+      equity: 189
+      point: 5
+      active_count: 0
+      roll_number: 1
+
+  - name: "Management operations preserve equity exactly"
+    bankroll: 100
+    setup:
+      - type: place_bet
+        kind: place
+        amount: 20
+        number: 5
+      - type: reduce_bet
+        bet_index: 0
+        new_amount: 10
+      - type: increase_bet
+        bet_index: 0
+        new_amount: 15
+      - type: press_bet
+        bet_index: 0
+        amount: 5
+      - type: regress_bets
+        kind: place
+        factor: 0.5
+        minimums:
+          5: 5
+      - type: remove_bet
+        bet_index: 0
+    rolls: []
+    expected:
+      cash: 100
+      equity: 100
+      point: null
+      active_count: 0
+      roll_number: 0
+
+  - name: "Explicit working override exposes Place 6 on come-out"
+    bankroll: 100
+    setup:
+      - type: place_bet
+        kind: place
+        amount: 12
+        number: 6
+      - type: set_working
+        bet_index: 0
+        working: true
+    rolls:
+      - [3, 4]
+    expected:
+      cash: 88
+      equity: 88
+      point: null
+      active_count: 0
+      roll_number: 1
+
+  - name: "Default-off Place 6 survives a come-out seven"
+    bankroll: 100
+    setup:
+      - type: place_bet
+        kind: place
+        amount: 12
+        number: 6
+    rolls:
+      - [3, 4]
+    expected:
+      cash: 88
+      equity: 100
+      point: null
+      active_count: 1
+      active_by_kind:
+        place: 1
+      roll_number: 1
