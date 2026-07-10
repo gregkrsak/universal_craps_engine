@@ -52,7 +52,10 @@ Run modes:
     python universal_craps_engine.py strategy.yaml --simulate
     python universal_craps_engine.py strategy.yaml --run-scenarios
     python universal_craps_engine.py strategy.yaml --audit
+    python universal_craps_engine.py strategy.yaml --monte-carlo TRIALS
     python universal_craps_engine.py --run-tests
+    python universal_craps_engine.py
+        (no arguments: print the same help text as --help)
 
 The embedded unittest suite ships with the engine.  It uses deterministic
 rolls, exhaustive 36-combination checks, ledger invariants, YAML validation,
@@ -3726,10 +3729,17 @@ def run_tests() -> int:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     """Parse command-line arguments and execute the selected engine mode."""
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
     if args.run_tests:
         return run_tests()
     if args.strategy is None:
+        # No strategy and no mode selected: behave like --help (issue #1).
+        if not any(
+            (args.simulate, args.audit, args.run_scenarios, args.monte_carlo)
+        ):
+            parser.print_help()
+            return 0
         raise SystemExit("A YAML strategy path is required for this mode.")
     config = YamlConfigLoader.load(args.strategy)
     if args.run_scenarios:
