@@ -645,3 +645,5 @@ Use the engine to understand rules and quantify risk—not to mistake a favorabl
 **Built to make every chip accountable.**
 
 </div>
+
+Run modes: [docs/run-modes.md](docs/run-modes.md).
