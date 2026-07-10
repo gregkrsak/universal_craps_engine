@@ -222,14 +222,14 @@ No database, web service, or installation of Universal Craps Engine *as a Python
 ## Installation
 
 ```bash
-git clone <your-repository-url>
-cd <your-repository-directory>
+git clone https://github.com/gregkrsak/universal_craps_engine.git
+cd universal_craps_engine
 
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 
 python -m pip install --upgrade pip
-python -m pip install PyYAML
+python -m pip install -r requirements.txt
 ```
 
 On Windows PowerShell:
