@@ -632,6 +632,12 @@ The project should be reviewed like any other software contribution: through tes
 
 ---
 
+## Contributors
+
+- Thanks to [@bri-leb](https://github.com/bri-leb) for the bug report and extensive troubleshooting of Buy/Lay vig as well as Decimal precision - [Issue #10](https://github.com/gregkrsak/universal_craps_engine/issues/10)
+
+---
+
 ## Responsible Use
 
 Craps is a negative-expectation casino game under standard rules. A strategy can change volatility, exposure, drawdown, session duration, and the probability of reaching a chosen target, but it cannot make independent fair dice remember prior outcomes.
