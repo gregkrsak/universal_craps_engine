@@ -609,8 +609,8 @@ class PayoutMath:
     PLACE_PROFIT = {
         4: Decimal("1.8"),
         5: Decimal("1.4"),
-        6: Decimal(7) / Decimal(6),
-        8: Decimal(7) / Decimal(6),
+        6: (Decimal("7"), Decimal("6")),
+        8: (Decimal("7"), Decimal("6")),
         9: Decimal("1.4"),
         10: Decimal("1.8"),
     }
@@ -624,10 +624,10 @@ class PayoutMath:
     }
     TRUE_LAY_PROFIT = {
         4: Decimal("0.5"),
-        5: Decimal(2) / Decimal(3),
-        6: Decimal(5) / Decimal(6),
-        8: Decimal(5) / Decimal(6),
-        9: Decimal(2) / Decimal(3),
+        5: (Decimal("2"), Decimal("3")),
+        6: (Decimal("5"), Decimal("6")),
+        8: (Decimal("5"), Decimal("6")),
+        9: (Decimal("2"), Decimal("3")),
         10: Decimal("0.5"),
     }
     HARDWAY_PROFIT = {
@@ -648,10 +648,13 @@ class PayoutMath:
     @staticmethod
     def gross_profit(
         amount: Money,
-        ratio: Money,
+        ratio: Money | tuple[Money, Money],
         rules: TableRules,
     ) -> Money:
         """Calculate and round gross profit under the table chip policy."""
+        if isinstance(ratio, tuple):
+            numerator, denominator = ratio
+            return rules.round_money(amount * numerator / denominator)
         return rules.round_money(amount * ratio)
 
     @staticmethod
@@ -1119,7 +1122,7 @@ class BetResolver:
                 rules,
             )
             commission = Decimal("0")
-            if rules.buy_vig_timing == "on_win":
+            if rules.buy_vig_timing in {"on_win", "upfront"}:
                 commission = PayoutMath.vig(
                     bet.amount,
                     gross,
@@ -1159,7 +1162,7 @@ class BetResolver:
                 rules,
             )
             commission = Decimal("0")
-            if rules.lay_vig_timing == "on_win":
+            if rules.lay_vig_timing in {"on_win", "upfront"}:
                 commission = PayoutMath.vig(
                     bet.amount,
                     gross,
@@ -3357,6 +3360,33 @@ class TestPersistentAndPropositionBets(EngineTestCase):
         self.assertEqual(controller.model.ledger.cash, Decimal("102"))
         self.assertEqual(controller.model.equity, Decimal("114"))
 
+    def test_exact_place_six_payout_has_no_decimal_artifact(self) -> None:
+        """Verify exact Place 6 payout returns a clean integer amount."""
+        controller = self.make_controller([(3, 3)], bankroll=100)
+        controller.model.point = 5
+        controller.place_bet(BetKind.PLACE, 18, number=6)
+        event = controller.roll_once()
+        self.assertEqual(event.settlements[0].profit, Decimal("21"))
+        self.assertEqual(controller.model.ledger.cash, Decimal("103"))
+
+    def test_exact_lay_six_payout_has_no_decimal_artifact(self) -> None:
+        """Verify exact Lay 6 payout returns a clean integer amount."""
+        rules = TableRules(
+            enforce_increments=False,
+            lay_vig_rate=Decimal("0"),
+            payout_rounding="exact",
+        )
+        controller = self.make_controller(
+            [(3, 4)],
+            bankroll=100,
+            rules=rules,
+        )
+        controller.model.point = 5
+        controller.place_bet(BetKind.LAY, 30, number=6)
+        event = controller.roll_once()
+        self.assertEqual(event.settlements[0].profit, Decimal("25"))
+        self.assertEqual(controller.model.equity, Decimal("125"))
+
     def test_place_bet_is_off_on_comeout_by_default(self) -> None:
         """Verify a Place wager does not resolve on come-out by default."""
         controller = self.make_controller([(3, 4)], bankroll=100)
@@ -3463,7 +3493,50 @@ class TestVigAndBetManagement(EngineTestCase):
         controller.place_bet(BetKind.LAY, 20, number=4)
         self.assertEqual(controller.model.ledger.cash, Decimal("79.5"))
         controller.roll_once()
-        self.assertEqual(controller.model.equity, Decimal("109.5"))
+        self.assertEqual(controller.model.equity, Decimal("109"))
+
+    def test_upfront_buy_vig_recharges_after_kept_up_win(self) -> None:
+        """Verify an upfront-vig Buy win pays for the next decision."""
+        rules = TableRules(
+            buy_vig_timing="upfront",
+            buy_vig_basis="wager",
+            chip_unit=Decimal("1"),
+            payout_rounding="floor",
+        )
+        controller = self.make_controller(
+            [(3, 3), (2, 2), (3, 4)],
+            bankroll=1000,
+            rules=rules,
+        )
+        controller.place_bet(BetKind.PASS_LINE, 15)
+        controller.roll_once()
+        controller.place_bet(BetKind.BUY, 25, number=4)
+        controller.roll_once()
+        self.assertEqual(controller.model.ledger.cash, Decimal("1008"))
+        controller.roll_once()
+        self.assertEqual(controller.model.ledger.cash, Decimal("1008"))
+
+    def test_upfront_lay_vig_recharges_after_kept_up_win(self) -> None:
+        """Verify an upfront-vig Lay win pays for the next decision."""
+        rules = TableRules(
+            lay_vig_timing="upfront",
+            lay_vig_basis="win",
+            lay_working_on_comeout=True,
+            chip_unit=Decimal("1"),
+            payout_rounding="floor",
+        )
+        controller = self.make_controller(
+            [(2, 2), (3, 4), (3, 3)],
+            bankroll=1000,
+            rules=rules,
+        )
+        controller.place_bet(BetKind.PASS_LINE, 15)
+        controller.roll_once()
+        controller.place_bet(BetKind.LAY, 30, number=6)
+        controller.roll_once()
+        self.assertEqual(controller.model.ledger.cash, Decimal("978"))
+        controller.roll_once()
+        self.assertEqual(controller.model.ledger.cash, Decimal("978"))
 
     def test_increasing_upfront_vig_bet_charges_added_vig(self) -> None:
         """Verify increasing an upfront-vig wager charges only added vig."""

@@ -5,7 +5,7 @@
 ### A rules-first, YAML-driven Craps simulator built for accurate accounting, clear audits, and repeatable strategy analysis.
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-43%20passing-brightgreen)](#testing)
+[![Tests](https://github.com/gregkrsak/universal_craps_engine/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/gregkrsak/universal_craps_engine/actions/workflows/tests.yml)
 [![Style](https://img.shields.io/badge/style-PEP%208-4B8BBE)](#engineering-quality)
 [![Configuration](https://img.shields.io/badge/config-YAML%20v1-CB171E?logo=yaml&logoColor=white)](#yaml-strategy-engine)
 [![Architecture](https://img.shields.io/badge/architecture-MVC-6f42c1)](#architecture)
@@ -629,6 +629,12 @@ Potential future enhancements:
 Created by **Greg M. Krsak** ([greg.krsak@gmail.com](mailto:greg.krsak@gmail.com)) and the **GPT-5.5 High setting in ChatGPT Plus**.
 
 The project should be reviewed like any other software contribution: through tests, code review, and verification against the applicable casino rules.
+
+---
+
+## Contributors
+
+- Thanks to [@bri-leb](https://github.com/bri-leb) for the bug report and extensive troubleshooting of Buy/Lay vig as well as Decimal precision - [Issue #10](https://github.com/gregkrsak/universal_craps_engine/issues/10)
 
 ---
 
