@@ -609,8 +609,8 @@ class PayoutMath:
     PLACE_PROFIT = {
         4: Decimal("1.8"),
         5: Decimal("1.4"),
-        6: Decimal(7) / Decimal(6),
-        8: Decimal(7) / Decimal(6),
+        6: (Decimal("7"), Decimal("6")),
+        8: (Decimal("7"), Decimal("6")),
         9: Decimal("1.4"),
         10: Decimal("1.8"),
     }
@@ -624,10 +624,10 @@ class PayoutMath:
     }
     TRUE_LAY_PROFIT = {
         4: Decimal("0.5"),
-        5: Decimal(2) / Decimal(3),
-        6: Decimal(5) / Decimal(6),
-        8: Decimal(5) / Decimal(6),
-        9: Decimal(2) / Decimal(3),
+        5: (Decimal("2"), Decimal("3")),
+        6: (Decimal("5"), Decimal("6")),
+        8: (Decimal("5"), Decimal("6")),
+        9: (Decimal("2"), Decimal("3")),
         10: Decimal("0.5"),
     }
     HARDWAY_PROFIT = {
@@ -648,10 +648,13 @@ class PayoutMath:
     @staticmethod
     def gross_profit(
         amount: Money,
-        ratio: Money,
+        ratio: Money | tuple[Money, Money],
         rules: TableRules,
     ) -> Money:
         """Calculate and round gross profit under the table chip policy."""
+        if isinstance(ratio, tuple):
+            numerator, denominator = ratio
+            return rules.round_money(amount * numerator / denominator)
         return rules.round_money(amount * ratio)
 
     @staticmethod
@@ -3356,6 +3359,33 @@ class TestPersistentAndPropositionBets(EngineTestCase):
         self.assertTrue(bet.is_active)
         self.assertEqual(controller.model.ledger.cash, Decimal("102"))
         self.assertEqual(controller.model.equity, Decimal("114"))
+
+    def test_exact_place_six_payout_has_no_decimal_artifact(self) -> None:
+        """Verify exact Place 6 payout returns a clean integer amount."""
+        controller = self.make_controller([(3, 3)], bankroll=100)
+        controller.model.point = 5
+        controller.place_bet(BetKind.PLACE, 18, number=6)
+        event = controller.roll_once()
+        self.assertEqual(event.settlements[0].profit, Decimal("21"))
+        self.assertEqual(controller.model.ledger.cash, Decimal("103"))
+
+    def test_exact_lay_six_payout_has_no_decimal_artifact(self) -> None:
+        """Verify exact Lay 6 payout returns a clean integer amount."""
+        rules = TableRules(
+            enforce_increments=False,
+            lay_vig_rate=Decimal("0"),
+            payout_rounding="exact",
+        )
+        controller = self.make_controller(
+            [(3, 4)],
+            bankroll=100,
+            rules=rules,
+        )
+        controller.model.point = 5
+        controller.place_bet(BetKind.LAY, 30, number=6)
+        event = controller.roll_once()
+        self.assertEqual(event.settlements[0].profit, Decimal("25"))
+        self.assertEqual(controller.model.equity, Decimal("125"))
 
     def test_place_bet_is_off_on_comeout_by_default(self) -> None:
         """Verify a Place wager does not resolve on come-out by default."""
