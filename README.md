@@ -5,7 +5,7 @@
 ### A rules-first, YAML-driven Craps simulator built for accurate accounting, clear audits, and repeatable strategy analysis.
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-43%20passing-brightgreen)](#testing)
+[![Tests](https://github.com/gregkrsak/universal_craps_engine/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/gregkrsak/universal_craps_engine/actions/workflows/tests.yml)
 [![Style](https://img.shields.io/badge/style-PEP%208-4B8BBE)](#engineering-quality)
 [![Configuration](https://img.shields.io/badge/config-YAML%20v1-CB171E?logo=yaml&logoColor=white)](#yaml-strategy-engine)
 [![Architecture](https://img.shields.io/badge/architecture-MVC-6f42c1)](#architecture)
